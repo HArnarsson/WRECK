@@ -1,0 +1,8 @@
+S -> Q R
+Q -> x Q y H
+| lambda
+H -> x Q y H
+| lambda
+R -> R r s t x y
+| R r s t y y y
+| s t

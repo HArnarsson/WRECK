@@ -1,0 +1,7 @@
+S -> A M $
+A -> A B $
+A -> a
+B -> C b
+B -> lambda
+M -> m
+C -> c

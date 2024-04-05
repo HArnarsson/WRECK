@@ -1,0 +1,8 @@
+S -> A C $
+A -> B R
+R -> + B R
+R -> lambda
+B -> q
+C -> a b Q
+Q -> c
+Q -> d
