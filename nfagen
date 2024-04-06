@@ -83,6 +83,29 @@ class NFA:
             self.lambda_wrap(src, childDest, child)
             src = childDest
         self.add_lambda(childDest, dest)
+
+    def node_alt(self, src, dest, alt):
+        for child in alt.children:
+            childDest = self.add_state()
+            self.lambda_wrap(src, childDest, child)
+            self.add_lambda(childDest, dest)
+
+    def node_range(self, src, dest, child):
+        for val in range(int(child[0].value), int(child[1].value)+1):
+            if chr(val) in self.alphabet:
+                self.add_edge(src, dest, chr(val))
+    
+    def node_kleene(self, src, dest, kleene):
+        # kleene will only ever have one child
+        self.lambda_wrap(kleene.children[0])
+        self.add_lambda(src, dest)
+        self.add_lambda(dest, src)
+
+    def leaf_dot(src, dest, child):
+        for char in self.alphabet:
+            self.add_edge(src, dest, char)
+
+
     
     def select_lambda(self):
         lam = chr(0)
