@@ -102,7 +102,7 @@ class NFA:
         self.add_lambda(src, dest)
         self.add_lambda(dest, src)
 
-    def leaf_dot(src, dest, child):
+    def leaf_dot(self, src, dest, child):
         for char in self.alphabet:
             self.add_edge(src, dest, char)
 
