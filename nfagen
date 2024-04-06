@@ -73,25 +73,77 @@ class NFA:
     
     def leaf_char(self, src, dest, child):
         self.add_edge(src, dest, child.value)
-
-            
-    def __str__(self):
-        print("todo")
     
-# this function is temporary for this file, needs to be restructured when merging later
-def alphabet_encode(c):
-    # operates on a single character
-    return str(hex(ord(c)))[1:]
+    def leaf_lambda(self, src, dest, child):
+        self.add_lambda(src, dest)
+
+    def node_seq(self, src, dest, seq):
+        for child in seq.children:
+            childDest = self.add_state()
+            self.lambda_wrap(src, childDest, child)
+            src = childDest
+        self.add_lambda(childDest, dest)
+    
+    def select_lambda(self):
+        lam = chr(0)
+        while lam in self.alphabet:
+            lam = chr(int(lam) + 1)
+        return lam
+
+    def alphabet_encode(self, c):
+        # operates on a single character
+        return str(hex(ord(c)))[1:]
+
+    def __str__(self):
+        lam = self.select_lambda()
+        output = ""
+        output += str(len(self.L))
+        output += " "
+        output += self.alphabet_encode(lam)
+        output += " "
+        for c in self.alphabet:
+            output += self.alphabet_encode(c)
+            output += " "
+        output += "\n"
+        for i in range(len(self.T)):
+            for c in self.T[i]:
+                if self.T[i][c] != "E":
+                    output += "-"
+                    output += " "
+                    output += str(i)
+                    output += " "
+                    output += str(self.T[i][c])
+                    output += " "
+                    output += self.alphabet_encode(c)
+                    output += "\n"
+        for i in range(len(self.L)):
+            for j in range(len(self.L)):
+                if self.L[i][j]:
+                    output += "-"
+                    output += " "
+                    output += str(i)
+                    output += " "
+                    output += str(j)
+                    output += " "
+                    output += self.alphabet_encode(lam)
+                    output += "\n"
+        output += "+ 1 1"
+        
+        return output
 
 def main():
     alphabet = ["a", "b", "c"]
     nfa = NFA(alphabet)
     print(nfa.T)
     print(nfa.L)
-    tree = Tree("a")
+    tree = Tree("SEQ")
+    tree.add_child(Tree("a"))
+    tree.add_child(Tree("b"))
+    tree.add_child(Tree("c"))
     nfa.lambda_wrap(0, 1, tree)
     print(nfa.T)
     print(nfa.L)
+    print(nfa)
 
 
 if __name__ == "__main__":
