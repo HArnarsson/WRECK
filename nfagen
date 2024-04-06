@@ -91,13 +91,14 @@ class NFA:
             self.add_lambda(childDest, dest)
 
     def node_range(self, src, dest, child):
-        for val in range(int(child[0].value), int(child[1].value)+1):
+        children = child.children
+        for val in range(ord(child[0].value), ord(child[1].value)+1):
             if chr(val) in self.alphabet:
                 self.add_edge(src, dest, chr(val))
     
     def node_kleene(self, src, dest, kleene):
         # kleene will only ever have one child
-        self.lambda_wrap(kleene.children[0])
+        self.lambda_wrap(src, dest, kleene.children[0])
         self.add_lambda(src, dest)
         self.add_lambda(dest, src)
 
