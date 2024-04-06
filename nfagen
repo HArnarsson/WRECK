@@ -92,7 +92,7 @@ class NFA:
 
     def node_range(self, src, dest, child):
         children = child.children
-        for val in range(ord(child[0].value), ord(child[1].value)+1):
+        for val in range(ord(children[0].value), ord(children[1].value)+1):
             if chr(val) in self.alphabet:
                 self.add_edge(src, dest, chr(val))
     
