@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+from collections import namedtuple
 
 class Tree:
     def __init__(self, val):
@@ -233,28 +234,74 @@ class CFG:
         while len(K) > 0:
             x = K.pop()
             if x in self.nonTerminals:
-                if not self.llt[x][ts[0]]:
+                if not self.llt[x][ts.peek()]:
                     print(self.llt[x])
-                    print(f"Unexpected value received from token stream: {ts[0]}, exiting...")
+                    print(f"Unexpected value received from token stream: {ts.peek()}, exiting...")
                     sys.exit(1)
                 else:
-                    p = self.productionRulesByKey[self.llt[x][ts[0]]]
+                    p = self.productionRulesByKey[self.llt[x][ts.peek()]]
                     K.append("*")
-                    R = p[1]
+                    R = p[1].copy()
                     while len(R) > 0:
                         K.append(R.pop())
                     current.add_child(Tree(x))
                     current = current.children[len(current.children)-1] 
             elif x in self.terminals or x == "lambda":
                 if x in self.terminals:
-                    if x != ts[0]:
-                        print(f"Value between token stream and expected value don't match. val:{x}, ts:{ts[0]}, exiting...")
+                    if x != ts.peek():
+                        print(f"Value between token stream and expected value don't match. val:{x}, ts:{ts.peek()}, exiting...")
                         sys.exit(1)
-                    x = ts.pop(0)
+                    x = ts.pop()
                 current.add_child(Tree(x))
             elif x == "*":
                 current = current.parent
         return current.children[0]
+
+Token = namedtuple('Token', ['type', 'value'])
+
+class TokenStream():
+    def __init__(self):
+        self.tokens = []
+
+    def addToken(self, token):
+        self.tokens.append(token)
+
+    def peek(self):
+        if self.tokens: return self.tokens[0].type
+        else: return '$'
+    
+    def pop(self):
+        if self.tokens: return self.tokens.pop(0).type
+        else: return '$'
+
+    def __str__(self):
+        printStr = ''
+        for token in self.tokens:
+            printStr += token.type + ' ' + token.value + '\n'
+        return printStr
+
+class Lexer():
+    def __init__(self):
+        self.escapedChars = {'\|' : Token('char', '|'), '\*' : Token('char', '*'), '\+' : Token('char', '+'), '\.' : Token('char', '.'), 
+                             '\(' : Token('char', '('), '\)' : Token('char', ')'), '\-' : Token('char', '-'), '\s' : ('char', 'x20'), 
+                             '\n' : Token('char', 'x0a'), '\\' : Token('char','\\')}
+        
+        self.operatorSymbols = {'(' : Token('open', '('), ')' : Token('close', ')'), '-' : Token('dash', '-'), '+' : Token('plus', '+'), 
+                                '*': Token('kleene', '*'), '.' : Token('dot', '.'), '|' : Token('pipe', '|')}
+
+    def lex(self, expression):
+        ts = TokenStream()
+        for i, char in enumerate(expression):
+            if i + 1 < len(expression):
+                if expression[i] + expression[i+1] in self.escapedChars:
+                    escChar = expression[i] + expression[i+1]
+                    ts.addToken(self.escapedChars[escChar])
+                    continue
+            if char in self.operatorSymbols:
+                ts.addToken(self.operatorSymbols[char])
+            else:
+                ts.addToken(Token('char', char))
+        return ts
 
 def main():
     if len(sys.argv) != 2:
@@ -273,7 +320,9 @@ def main():
         for rhs in cfg.productionRules[lhs]:
             print(lhs, "->", rhs, cfg.predict_set(lhs, rhs))
     cfg.generate_llt()
-    tree = cfg.parse(["b", "g", "h", "m", "$"])
+    l = Lexer()
+    ts = l.lex('A-D.g+') # this is just a stand in for now lexer just takes in a string and coverts it to tokens
+    tree = cfg.parse(ts)
     for child in tree.children:
         print(child.value)
     print(cfg)
