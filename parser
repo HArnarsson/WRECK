@@ -3,15 +3,181 @@
 import sys
 from collections import namedtuple
 
-class Tree:
-    def __init__(self, val):
+# lambda_symbol = '\u03BB'
+
+class Node:
+    def __init__(self, type, val=None):
         self.children = []
         self.parent = None
+        self.type = type
         self.value = val
 
     def add_child(self, child):
         self.children.append(child)
         child.parent = self
+
+    def replace_all_children(self, newChild):
+        self.children.clear()
+        self.add_child(newChild)
+
+    def has_child_of_type(self, type):
+        for child in self.children:
+            if child.type == type:
+                return True
+        return False
+
+    def get_child_of_type(self, type):
+        for child in self.children:
+            if child.type == type:
+                return child
+        print(f'ERROR {self} does not have any {type} children')
+    
+    def replace_self(self, replacement):
+        # don't change parent value
+        # self.children = replacement.children.copy()
+        self.children.clear()
+        self.adopt_children(replacement.children)
+        self.type = replacement.type
+        self.value = replacement.value
+
+    def copy(self):
+        newNode = Node(type=self.type, val=self.value)
+        newNode.children = self.children.copy()
+        newNode.parent = self.parent
+        return newNode
+    
+    def adopt_children(self, newChildren):
+        for child in newChildren:
+            child.parent = self
+            self.children.append(child)
+
+    def NUCLEUS(self):
+        if self.has_child_of_type('CHARRNG'):
+            charrngChild = self.get_child_of_type('CHARRNG')
+
+            if charrngChild.has_child_of_type('char'):
+                grandchild = charrngChild.get_child_of_type('char')
+                rangeNode = Node(type='range')
+                charNode = self.get_child_of_type('char')
+                rangeNode.add_child(charNode)
+                rangeNode.add_child(grandchild)
+                self.replace_all_children(rangeNode)
+                return self
+
+            if charrngChild.has_child_of_type('\u03BB'):
+                self.children.remove(charrngChild)
+                return self
+            
+        elif self.has_child_of_type('dot'):
+            dotChild = self.get_child_of_type('dot')
+            self.replace_self(dotChild)
+            return self
+        
+        elif self.children[0].type == 'open':
+            altNode = self.children[1]
+            self.replace_self(altNode)
+            return self
+        
+        return self
+    
+    def ATOM(self):
+        if self.has_child_of_type('ATOMMOD'):
+            child = self.get_child_of_type('ATOMMOD')
+            if child.has_child_of_type('\u03BB'):
+                leftChild = self.children[0]
+                replacement = leftChild.children[0]
+                self.replace_self(replacement)
+                return self
+            if child.has_child_of_type('kleene'):
+                newAtom = Node(type='kleene')
+                newAtom.add_child(self.children[0].children[0]) # leftmost child of the leftmost child
+                self.replace_self(newAtom)
+                return self
+            if child.has_child_of_type('plus'):
+                newAtom = Node(type='SEQ')
+                newAtom.add_child(self.children[0].children[0]) 
+                newKleen = Node(type='kleene')
+                newKleen.add_child((self.children[0].children[0]).copy())
+                newAtom.add_child(newKleen)
+                self.replace_self(newAtom)
+                return self
+        return self
+
+    def SEQLIST(self):
+        parent = self.parent
+        if self.has_child_of_type('\u03BB'):
+            print(f'SEQ HAS LAMBDA CHILD')
+            parent.children.remove(self)
+            return parent
+        elif parent.type == 'SEQLIST':
+            grandkids = self.children
+            parent.children.remove(self)
+            parent.adopt_children(grandkids)
+            return parent            
+        return self
+
+    def SEQ(self):
+        for child in self.children:
+            if child.has_child_of_type('SEQLIST'):
+                grandchild = child.get_child_of_type('SEQLIST')
+                greatGrandKids = grandchild.children
+                child.children.remove(grandchild)
+                child.adopt_children(greatGrandKids)
+        # don't know if this is necessary just here to deal with the plus logic
+        if self.has_child_of_type('SEQ'):
+            seqChild = self.get_child_of_type('SEQ')
+            grandchildren = seqChild.children
+            self.children.remove(seqChild)
+            self.adopt_children(grandchildren)
+            return self
+        return self
+
+    def ALTLIST(self):
+        parent = self.parent
+        if parent.type == 'ALTLIST':
+            grandkids = self.children
+            parent.children.pop(self)
+            parent.adopt_children(grandkids)
+            return parent
+        # if len(self.children) == 1 and self.has_child_of_type('\u03BB'):
+        #     # parent = self.parent
+        #     parent.children.remove(self)
+        #     return parent
+        return self
+    
+    def ALT(self):
+        if self.has_child_of_type('ALTLIST'):
+            child = self.get_child_of_type('ALTLIST')
+            if not child.has_child_of_type('pipe'):
+                replacement = self.children[0]
+                self.replace_self(replacement)
+                return self
+        return self
+
+    # def RE(self):
+    #     return self.children[0]
+    
+    def sdt_procedure(self):
+        if self.type == 'NUCLEUS':
+            return(self.NUCLEUS())
+        if self.type == 'ATOM':
+            return(self.ATOM())
+        elif self.type == 'SEQ':
+            return(self.SEQ())
+        if self.type == 'SEQLIST':
+            return (self.SEQLIST())
+        elif self.type == 'ALT':
+            return(self.ALT())
+        elif self.type == 'ATLIST':
+            return(self.ALTLIST())
+        # elif self.type == 'RE':
+        #     return(self.RE())
+        else:
+            return self
+    
+    def __repr__(self):
+        printStr = f'({self.type}, {self.value})'
+        return printStr
 
 class CFG:
     def __init__(self):
@@ -227,7 +393,7 @@ class CFG:
     
     def parse(self, ts):
         # LL(1) Parser
-        T = Tree("root")
+        T = Node("root")
         current = T
         K = []
         K.append(self.startSymbol)
@@ -244,7 +410,7 @@ class CFG:
                     R = p[1].copy()
                     while len(R) > 0:
                         K.append(R.pop())
-                    current.add_child(Tree(x))
+                    current.add_child(Node(x))
                     current = current.children[len(current.children)-1] 
             elif x in self.terminals or x == "lambda":
                 if x in self.terminals:
@@ -252,9 +418,13 @@ class CFG:
                         print(f"Value between token stream and expected value don't match. val:{x}, ts:{ts.peek()}, exiting...")
                         sys.exit(1)
                     x = ts.pop()
-                current.add_child(Tree(x))
+                current.add_child(Node(x))
             elif x == "*":
-                current = current.parent
+                if current.type == 'root':
+                    return current.children[0]
+                else:
+                    current = current.parent
+                    current = current.sdt_procedure()
         return current.children[0]
 
 Token = namedtuple('Token', ['type', 'value'])

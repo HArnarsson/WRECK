@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-class Tree:
+class Node:
     def __init__(self, val):
         self.children = []
         self.parent = None
@@ -105,8 +105,6 @@ class NFA:
     def leaf_dot(self, src, dest, child):
         for char in self.alphabet:
             self.add_edge(src, dest, char)
-
-
     
     def select_lambda(self):
         lam = chr(0)
@@ -160,10 +158,10 @@ def main():
     nfa = NFA(alphabet)
     print(nfa.T)
     print(nfa.L)
-    tree = Tree("SEQ")
-    tree.add_child(Tree("a"))
-    tree.add_child(Tree("b"))
-    tree.add_child(Tree("c"))
+    tree = Node("SEQ")
+    tree.add_child(Node("a"))
+    tree.add_child(Node("b"))
+    tree.add_child(Node("c"))
     nfa.lambda_wrap(0, 1, tree)
     print(nfa.T)
     print(nfa.L)
