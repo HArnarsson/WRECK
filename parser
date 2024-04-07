@@ -6,10 +6,10 @@ from collections import namedtuple
 # lambda_symbol = '\u03BB'
 
 class Node:
-    def __init__(self, type, val=None):
+    def __init__(self, kind, val=None):
         self.children = []
         self.parent = None
-        self.type = type
+        self.kind = kind
         self.value = val
 
     def add_child(self, child):
@@ -20,28 +20,28 @@ class Node:
         self.children.clear()
         self.add_child(newChild)
 
-    def has_child_of_type(self, type):
+    def has_child_of_kind(self, kind):
         for child in self.children:
-            if child.type == type:
+            if child.kind == kind:
                 return True
         return False
 
-    def get_child_of_type(self, type):
+    def get_child_of_kind(self, kind):
         for child in self.children:
-            if child.type == type:
+            if child.kind == kind:
                 return child
-        print(f'ERROR {self} does not have any {type} children')
+        print(f'ERROR {self} does not have any {kind} children')
     
     def replace_self(self, replacement):
         # don't change parent value
         # self.children = replacement.children.copy()
         self.children.clear()
         self.adopt_children(replacement.children)
-        self.type = replacement.type
+        self.kind = replacement.kind
         self.value = replacement.value
 
     def copy(self):
-        newNode = Node(type=self.type, val=self.value)
+        newNode = Node(kind=self.kind, val=self.value)
         newNode.children = self.children.copy()
         newNode.parent = self.parent
         return newNode
@@ -51,29 +51,38 @@ class Node:
             child.parent = self
             self.children.append(child)
 
-    def NUCLEUS(self):
-        if self.has_child_of_type('CHARRNG'):
-            charrngChild = self.get_child_of_type('CHARRNG')
+    def remove_child(self, kind):
+        newChildren = []
+        for child in self.children:
+            if child.kind == kind:
+                continue
+            else:
+                newChildren.append(child)
+        self.children = newChildren
 
-            if charrngChild.has_child_of_type('char'):
-                grandchild = charrngChild.get_child_of_type('char')
-                rangeNode = Node(type='range')
-                charNode = self.get_child_of_type('char')
+    def NUCLEUS(self):
+        if self.has_child_of_kind('CHARRNG'):
+            charrngChild = self.get_child_of_kind('CHARRNG')
+
+            if charrngChild.has_child_of_kind('char'):
+                grandchild = charrngChild.get_child_of_kind('char')
+                rangeNode = Node(kind='range')
+                charNode = self.get_child_of_kind('char')
                 rangeNode.add_child(charNode)
                 rangeNode.add_child(grandchild)
                 self.replace_all_children(rangeNode)
                 return self
 
-            if charrngChild.has_child_of_type('\u03BB'):
+            if charrngChild.has_child_of_kind('\u03BB'):
                 self.children.remove(charrngChild)
                 return self
             
-        elif self.has_child_of_type('dot'):
-            dotChild = self.get_child_of_type('dot')
+        elif self.has_child_of_kind('dot'):
+            dotChild = self.get_child_of_kind('dot')
             self.replace_self(dotChild)
             return self
         
-        elif self.children[0].type == 'open':
+        elif self.children[0].kind == 'open':
             altNode = self.children[1]
             self.replace_self(altNode)
             return self
@@ -81,22 +90,22 @@ class Node:
         return self
     
     def ATOM(self):
-        if self.has_child_of_type('ATOMMOD'):
-            child = self.get_child_of_type('ATOMMOD')
-            if child.has_child_of_type('\u03BB'):
+        if self.has_child_of_kind('ATOMMOD'):
+            child = self.get_child_of_kind('ATOMMOD')
+            if child.has_child_of_kind('\u03BB'):
                 leftChild = self.children[0]
                 replacement = leftChild.children[0]
                 self.replace_self(replacement)
                 return self
-            if child.has_child_of_type('kleene'):
-                newAtom = Node(type='kleene')
+            if child.has_child_of_kind('kleene'):
+                newAtom = Node(kind='kleene')
                 newAtom.add_child(self.children[0].children[0]) # leftmost child of the leftmost child
                 self.replace_self(newAtom)
                 return self
-            if child.has_child_of_type('plus'):
-                newAtom = Node(type='SEQ')
+            if child.has_child_of_kind('plus'):
+                newAtom = Node(kind='SEQ')
                 newAtom.add_child(self.children[0].children[0]) 
-                newKleen = Node(type='kleene')
+                newKleen = Node(kind='kleene')
                 newKleen.add_child((self.children[0].children[0]).copy())
                 newAtom.add_child(newKleen)
                 self.replace_self(newAtom)
@@ -105,50 +114,53 @@ class Node:
 
     def SEQLIST(self):
         parent = self.parent
-        if self.has_child_of_type('\u03BB'):
-            print(f'SEQ HAS LAMBDA CHILD')
+        if self.has_child_of_kind('\u03BB'):
             parent.children.remove(self)
             return parent
-        elif parent.type == 'SEQLIST':
+        elif parent.kind == 'SEQLIST':
             grandkids = self.children
-            parent.children.remove(self)
+            # parent.children.remove(self)
+            parent.remove_child('SEQLIST')
             parent.adopt_children(grandkids)
             return parent            
         return self
 
     def SEQ(self):
-        for child in self.children:
-            if child.has_child_of_type('SEQLIST'):
-                grandchild = child.get_child_of_type('SEQLIST')
-                greatGrandKids = grandchild.children
-                child.children.remove(grandchild)
-                child.adopt_children(greatGrandKids)
+        if self.has_child_of_kind('SEQLIST'):
+            child = self.get_child_of_kind('SEQLIST')
+            grandKids = child.children
+            # self.children.remove(child)
+            self.remove_child('SEQLIST')
+            self.adopt_children(grandKids)
+            return self
         # don't know if this is necessary just here to deal with the plus logic
-        if self.has_child_of_type('SEQ'):
-            seqChild = self.get_child_of_type('SEQ')
+        if self.has_child_of_kind('SEQ'):
+            seqChild = self.get_child_of_kind('SEQ')
             grandchildren = seqChild.children
-            self.children.remove(seqChild)
+            # self.children.remove(seqChild)
+            self.remove_child('SEQ')
             self.adopt_children(grandchildren)
             return self
         return self
 
     def ALTLIST(self):
         parent = self.parent
-        if parent.type == 'ALTLIST':
+        if parent.kind == 'ALTLIST':
             grandkids = self.children
-            parent.children.pop(self)
+            # parent.children.pop(self)
+            parent.remove_child('ALTLIST')
             parent.adopt_children(grandkids)
             return parent
-        # if len(self.children) == 1 and self.has_child_of_type('\u03BB'):
+        # if len(self.children) == 1 and self.has_child_of_kind('\u03BB'):
         #     # parent = self.parent
         #     parent.children.remove(self)
         #     return parent
         return self
     
     def ALT(self):
-        if self.has_child_of_type('ALTLIST'):
-            child = self.get_child_of_type('ALTLIST')
-            if not child.has_child_of_type('pipe'):
+        if self.has_child_of_kind('ALTLIST'):
+            child = self.get_child_of_kind('ALTLIST')
+            if not child.has_child_of_kind('pipe'):
                 replacement = self.children[0]
                 self.replace_self(replacement)
                 return self
@@ -158,17 +170,17 @@ class Node:
     #     return self.children[0]
     
     def sdt_procedure(self):
-        if self.type == 'NUCLEUS':
+        if self.kind == 'NUCLEUS':
             return(self.NUCLEUS())
-        if self.type == 'ATOM':
+        if self.kind == 'ATOM':
             return(self.ATOM())
-        elif self.type == 'SEQ':
+        elif self.kind == 'SEQ':
             return(self.SEQ())
-        if self.type == 'SEQLIST':
+        if self.kind == 'SEQLIST':
             return (self.SEQLIST())
-        elif self.type == 'ALT':
+        elif self.kind == 'ALT':
             return(self.ALT())
-        elif self.type == 'ATLIST':
+        elif self.kind == 'ATLIST':
             return(self.ALTLIST())
         # elif self.type == 'RE':
         #     return(self.RE())
@@ -176,7 +188,7 @@ class Node:
             return self
     
     def __repr__(self):
-        printStr = f'({self.type}, {self.value})'
+        printStr = f'({self.kind}, {self.value})'
         return printStr
 
 class CFG:
@@ -408,19 +420,23 @@ class CFG:
                     p = self.productionRulesByKey[self.llt[x][ts.peek()]]
                     K.append("*")
                     R = p[1].copy()
+                    if R == []:
+                        K.append('\u03BB')
                     while len(R) > 0:
                         K.append(R.pop())
                     current.add_child(Node(x))
                     current = current.children[len(current.children)-1] 
-            elif x in self.terminals or x == "lambda":
+            elif x in self.terminals or x == '\u03BB' or x == 'lambda':
                 if x in self.terminals:
                     if x != ts.peek():
                         print(f"Value between token stream and expected value don't match. val:{x}, ts:{ts.peek()}, exiting...")
                         sys.exit(1)
                     x = ts.pop()
-                current.add_child(Node(x))
+                else: value = None   
+                current.add_child(Node(kind=x, val=value))
+                # current.add_child(Node(x))
             elif x == "*":
-                if current.type == 'root':
+                if current.kind == 'root':
                     return current.children[0]
                 else:
                     current = current.parent
