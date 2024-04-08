@@ -70,6 +70,13 @@ class Node:
             c.parent = None
         self.children.clear()
 
+    def SEMANTIC_ERROR(self, error_specifics=None):
+        error_message = 'SemanticError' 
+        if error_specifics is not None:
+            error_message += ': ' + error_specifics
+        print(error_message)
+        sys.exit(3)
+
     def NUCLEUS(self):
         if self.children[0].kind == 'open':
             altNode = self.children[1]
@@ -78,12 +85,15 @@ class Node:
         if self.has_child_of_kind('CHARRNG'):
             charrngChild = self.get_child_of_kind('CHARRNG')
             if charrngChild.has_child_of_kind('char'):
-                grandchild = charrngChild.get_child_of_kind('char')
+                leftChar = self.get_child_of_kind('char')
+                rightChar = charrngChild.get_child_of_kind('char')
                 rangeNode = Node(kind='range')
-                charNode = self.get_child_of_kind('char')
-                rangeNode.add_child(charNode)
-                rangeNode.add_child(grandchild)
-                self.replace_self(rangeNode)
+                if ord(leftChar.value) > ord(rightChar.value):
+                    self.SEMANTIC_ERROR('invalid char range')
+                else:
+                    rangeNode.add_child(leftChar)
+                    rangeNode.add_child(rightChar)
+                    self.replace_self(rangeNode)
                 return self
             if charrngChild.has_child_of_kind('\u03BB'):
                 self.remove_child(charrngChild)
@@ -94,7 +104,6 @@ class Node:
             dotChild = self.get_child_of_kind('dot')
             self.replace_self(dotChild)
             return self
-        
         return self
     
     def ATOM(self):
