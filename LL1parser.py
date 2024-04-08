@@ -17,7 +17,7 @@ class Node:
         child.parent = self
 
     def replace_all_children(self, newChild):
-        self.children.clear()
+        self.delete_all_children()
         self.add_child(newChild)
 
     def has_child_of_kind(self, kind):
@@ -34,63 +34,66 @@ class Node:
     
     def replace_self(self, replacement):
         # don't change parent value
-        # self.children = replacement.children.copy()
-        self.children.clear()
-        self.adopt_children(replacement.children)
+        newKids = replacement.children
+        self.delete_all_children()
+        self.adopt_children(newKids)
         self.kind = replacement.kind
         self.value = replacement.value
-
+    
     def copy(self):
-        newNode = Node(kind=self.kind, val=self.value)
-        newNode.children = self.children.copy()
-        newNode.parent = self.parent
+        processed = set()
+        newNode = self.copy_children(processed)
         return newNode
     
+    def copy_children(self, processed):
+        processed.add(self)
+        newNode = Node(kind=self.kind, val=self.value)
+        newNode.parent = self.parent
+        newKids = []
+        for child in self.children:
+            if child not in processed:
+                newChild = child.copy_children(processed)
+                newKids.append(newChild)
+        newNode.adopt_children(newKids)
+        return newNode
+        
     def adopt_children(self, newChildren):
         for child in newChildren:
             child.parent = self
             self.children.append(child)
 
-    def remove_child(self, kind):
-        newChildren = []
-        for child in self.children:
-            if child.kind == kind:
-                continue
-            else:
-                newChildren.append(child)
-        self.children = newChildren
+    def remove_child(self, child):
+        self.children.remove(child)
+    
+    def delete_all_children(self):
+        for c in self.children:
+            c.parent = None
+        self.children.clear()
 
     def NUCLEUS(self):
+        if self.children[0].kind == 'open':
+            altNode = self.children[1]
+            self.replace_self(altNode)
+            return self
         if self.has_child_of_kind('CHARRNG'):
             charrngChild = self.get_child_of_kind('CHARRNG')
-
             if charrngChild.has_child_of_kind('char'):
                 grandchild = charrngChild.get_child_of_kind('char')
                 rangeNode = Node(kind='range')
                 charNode = self.get_child_of_kind('char')
                 rangeNode.add_child(charNode)
                 rangeNode.add_child(grandchild)
-                self.replace_all_children(rangeNode)
+                self.replace_self(rangeNode)
                 return self
-
             if charrngChild.has_child_of_kind('\u03BB'):
-                self.children.remove(charrngChild)
+                self.remove_child(charrngChild)
+                replacement = self.children[0]
+                self.replace_self(replacement)
                 return self
-            
-        elif self.has_child_of_kind('dot'):
+        if self.has_child_of_kind('dot'):
             dotChild = self.get_child_of_kind('dot')
             self.replace_self(dotChild)
             return self
-        
-        elif self.children[0].kind == 'open':
-            altNode = self.children[1]
-            self.replace_self(altNode)
-            return self
-        
-        elif len(self.children) == 1:
-            
-            replacement = self.children[0]
-            self.replace_self(replacement)
         
         return self
     
@@ -99,23 +102,19 @@ class Node:
             child = self.get_child_of_kind('ATOMMOD')
             if child.has_child_of_kind('\u03BB'):
                 leftChild = self.children[0]
-                if leftChild.children:
-                    replacement = leftChild.children[0]
-                else:
-                    replacement = leftChild
-                # replacement = leftChild.children[0]
+                replacement = leftChild
                 self.replace_self(replacement)
                 return self
             if child.has_child_of_kind('kleene'):
                 newAtom = Node(kind='kleene')
-                newAtom.add_child(self.children[0].children[0]) # leftmost child of the leftmost child
+                newAtom.add_child(self.children[0]) # leftmost child
                 self.replace_self(newAtom)
                 return self
             if child.has_child_of_kind('plus'):
-                newAtom = Node(kind='SEQ')
-                newAtom.add_child(self.children[0].children[0]) 
+                newAtom = Node(kind='SEQLIST')
+                newAtom.add_child(self.children[0]) 
                 newKleen = Node(kind='kleene')
-                newKleen.add_child((self.children[0].children[0]).copy())
+                newKleen.add_child(self.children[0].copy())
                 newAtom.add_child(newKleen)
                 self.replace_self(newAtom)
                 return self
@@ -124,92 +123,74 @@ class Node:
     def SEQLIST(self):
         parent = self.parent
         if self.has_child_of_kind('\u03BB'):
-            parent.children.remove(self)
-            return parent
-        elif parent.kind == 'SEQLIST':
+            parent.remove_child(self)
+            return self
+        if parent.kind == 'SEQLIST':
             grandkids = self.children
-            # parent.children.remove(self)
-            parent.remove_child('SEQLIST')
+            parent.remove_child(self)
             parent.adopt_children(grandkids)
-            return parent 
-        if len(self.children) == 1:
-            replacement = self.children[0]
-            self.replace_self(replacement)           
+            return self        
         return self
 
     def SEQ(self):
         while self.has_child_of_kind('SEQLIST'):
             child = self.get_child_of_kind('SEQLIST')
             grandKids = child.children
-            # self.children.remove(child)
-            self.remove_child('SEQLIST')
+            self.remove_child(child)
             self.adopt_children(grandKids)
-        # don't know if this is necessary just here to deal with the plus logic
-        if self.has_child_of_kind('SEQ'):
-            seqChild = self.get_child_of_kind('SEQ')
-            grandchildren = seqChild.children
-            # self.children.remove(seqChild)
-            self.remove_child('SEQ')
-            self.adopt_children(grandchildren)
-        elif len(self.children) == 1:
+        if len(self.children) == 1:
             replacement = self.children[0]
             self.replace_self(replacement)
         return self
 
     def ALTLIST(self):
         parent = self.parent
+        if len(self.children) == 1 and self.has_child_of_kind('\u03BB'):
+            parent.remove_child(self)
+            return self
         if parent.kind == 'ALTLIST':
             grandkids = self.children
-            # parent.children.pop(self)
-            parent.remove_child('ALTLIST')
             parent.adopt_children(grandkids)
-            return parent
-        if len(self.children) == 1 and self.has_child_of_kind('\u03BB'):
-            # parent = self.parent
-            parent.remove_child('ALTLIST')
-            return parent
+            return self
         return self
     
     def ALT(self):
-        if self.has_child_of_kind('ALTLIST'):
+        while self.has_child_of_kind('ALTLIST'):
             child = self.get_child_of_kind('ALTLIST')
-            if not child.has_child_of_kind('pipe'):
-                replacement = self.children[0]
-                self.replace_self(replacement)
-                return self
+            grandchildren = child.children
+            self.remove_child(child)
+            self.adopt_children(grandchildren)
+        for c in self.children:
+            if c.kind == 'pipe':
+                self.remove_child(c)
         if len(self.children) == 1:
             replacement = self.children[0]
             self.replace_self(replacement)
-            return self
         return self
 
     def RE(self):
         return self.children[0]
     
     def sdt_procedure(self):
-        # print(f'initiating sdt procedure with {self}')
-        # print(f'self: {self}')
-        # print(f'children: {self.children}')
-        # print(f'parent: {self.parent}')
         if self.kind == 'NUCLEUS':
             return(self.NUCLEUS())
         if self.kind == 'ATOM':
             return(self.ATOM())
-        elif self.kind == 'SEQ':
+        if self.kind == 'SEQ':
             return(self.SEQ())
         if self.kind == 'SEQLIST':
-            return (self.SEQLIST())
-        elif self.kind == 'ALT':
+            return(self.SEQLIST())
+        if self.kind == 'ALT':
             return(self.ALT())
-        elif self.kind == 'ATLIST':
+        if self.kind == 'ALTLIST':
             return(self.ALTLIST())
-        elif self.kind == 'RE':
+        if self.kind == 'RE':
             return(self.RE())
-        else:
-            return self
+        return self
     
     def __repr__(self):
-        printStr = f'({self.kind}, {self.value})'
+        chillins = [c.kind for c in self.children]
+        printStr = f'self:({self.kind}, {self.value}) --> children:{chillins}'
         return printStr
 
 class CFG:
@@ -447,22 +428,17 @@ class CFG:
                         K.append(R.pop())
                     current.add_child(Node(x))
                     current = current.children[len(current.children)-1] 
-            elif x in self.terminals or x == '\u03BB' or x == 'lambda':
+            elif x in self.terminals or x == '\u03BB':
                 if x in self.terminals:
                     if x != ts.peek():
                         print(f"Value between token stream and expected value don't match. val:{x}, ts:{ts.peek()}, exiting...")
                         sys.exit(1)
-                    x = ts.pop()
+                    x, value = ts.pop()
                 else: value = None   
                 current.add_child(Node(kind=x, val=value))
-                # current.add_child(Node(x))
             elif x == "*":
-                if current.kind == 'root':
-                    return current.children[0]
-                else:
-                    current = current.sdt_procedure()
-                    current = current.parent
-                    # current = current.sdt_procedure()
+                current = current.sdt_procedure()
+                current = current.parent
         return current.children[0]
 
 Token = namedtuple('Token', ['type', 'value'])
@@ -479,8 +455,10 @@ class TokenStream():
         else: return '$'
     
     def pop(self):
-        if self.tokens: return self.tokens.pop(0).type
-        else: return '$'
+        if self.tokens: 
+            t = self.tokens.pop(0)
+            return t.type, t.value
+        else: return '$', '$'
 
     def __str__(self):
         printStr = ''
@@ -499,16 +477,20 @@ class Lexer():
 
     def lex(self, expression):
         ts = TokenStream()
-        for i, char in enumerate(expression):
+        i = 0
+        while i < len(expression):
+            char = expression[i]
             if i + 1 < len(expression):
                 if expression[i] + expression[i+1] in self.escapedChars:
                     escChar = expression[i] + expression[i+1]
                     ts.addToken(self.escapedChars[escChar])
+                    i += 2
                     continue
             if char in self.operatorSymbols:
                 ts.addToken(self.operatorSymbols[char])
             else:
                 ts.addToken(Token('char', char))
+            i += 1
         return ts
 
 def main():
