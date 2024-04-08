@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-
-class Node:
-    def __init__(self, val):
-        self.children = []
-        self.parent = None
-        self.value = val
-
-    def add_child(self, child):
-        self.children.append(child)
-        child.parent = self
+from node import Node
 
 class NFA:
     def __init__(self, alphabet):
@@ -56,17 +47,17 @@ class NFA:
         self.process_child(before, after, child)
 
     def process_child(self, src, dest, child):
-        if child.value == "SEQ":
+        if child.kind == "SEQ":
             self.node_seq(src, dest, child)
-        elif child.value == "ALT":
+        elif child.kind == "ALT":
             self.node_alt(src, dest, child)
-        elif child.value == "range":
+        elif child.kind == "range":
             self.node_range(src, dest, child)
-        elif child.value == "kleene":
+        elif child.kind == "kleene":
             self.node_kleene(src, dest, child)
         elif child.value == "lambda":
             self.leaf_lambda(src, dest, child)
-        elif child.value == "dot":
+        elif child.kind == "dot":
             self.leaf_dot(src, dest, child)
         elif child.value in self.alphabet:
             self.leaf_char(src, dest, child)
@@ -153,20 +144,3 @@ class NFA:
         
         return output
 
-def main():
-    alphabet = ["a", "b", "c"]
-    nfa = NFA(alphabet)
-    print(nfa.T)
-    print(nfa.L)
-    tree = Node("SEQ")
-    tree.add_child(Node("a"))
-    tree.add_child(Node("b"))
-    tree.add_child(Node("c"))
-    nfa.lambda_wrap(0, 1, tree)
-    print(nfa.T)
-    print(nfa.L)
-    print(nfa)
-
-
-if __name__ == "__main__":
-    main()
