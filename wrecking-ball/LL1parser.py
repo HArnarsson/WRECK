@@ -282,7 +282,7 @@ class Lexer():
     def __init__(self):
         self.escapedChars = {'\|' : Token('char', '|'), '\*' : Token('char', '*'), '\+' : Token('char', '+'), '\.' : Token('char', '.'), 
                              '\(' : Token('char', '('), '\)' : Token('char', ')'), '\-' : Token('char', '-'), '\s' : Token('char', 'x20'), 
-                             '\n' : Token('char', 'x0a'), '\\' : Token('char','\\')}
+                             '\\n' : Token('char', 'x0a'), '\\\\' : Token('char','x5c')}
         
         self.operatorSymbols = {'(' : Token('open', '('), ')' : Token('close', ')'), '-' : Token('dash', '-'), '+' : Token('plus', '+'), 
                                 '*': Token('kleene', '*'), '.' : Token('dot', '.'), '|' : Token('pipe', '|')}
@@ -303,6 +303,5 @@ class Lexer():
             else:
                 ts.addToken(Token('char', char))
             i += 1
-        # print(ts)
         return ts
 

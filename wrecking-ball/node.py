@@ -44,11 +44,18 @@ class Node:
         newNode = Node(kind=self.kind, val=self.value)
         newNode.parent = self.parent
         newKids = []
-        for child in self.children[::-1]:
-            if child not in processed:
-                newChild = child.copy_children(processed)
-                newKids.append(newChild)
-        newNode.adopt_children(newKids)
+        if self.children == [] or self.children[0].children == []:
+            for child in self.children:
+                if child not in processed:
+                    newChild = child.copy_children(processed)
+                    newKids.append(newChild)
+            newNode.adopt_children(newKids)
+        else:
+            for child in self.children[::-1]:
+                if child not in processed:
+                    newChild = child.copy_children(processed)
+                    newKids.append(newChild)
+            newNode.adopt_children(newKids)
         return newNode
         
     def adopt_children(self, newChildren):

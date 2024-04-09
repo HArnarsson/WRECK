@@ -60,11 +60,12 @@ class NFA:
             self.leaf_lambda(src, dest, child)
         elif child.kind == "dot":
             self.leaf_dot(src, dest, child)
-        elif child.value in self.alphabet:
+        elif self.alphabet_encode(child.value) in self.alphabet:
             self.leaf_char(src, dest, child)
     
     def leaf_char(self, src, dest, child):
-        self.add_edge(src, dest, child.value)
+        char = self.alphabet_encode(child.value)
+        self.add_edge(src, dest, char)
     
     def leaf_lambda(self, src, dest, child):
         self.add_lambda(src, dest)
@@ -85,7 +86,7 @@ class NFA:
     def node_range(self, src, dest, child):
         children = child.children
         for val in range(ord(children[0].value), ord(children[1].value)+1):
-            if chr(val) in self.alphabet:
+            if self.alphabet_encode(chr(val)) in self.alphabet:
                 self.add_edge(src, dest, chr(val))
     
     def node_kleene(self, src, dest, kleene):
@@ -104,21 +105,24 @@ class NFA:
             lam = chr(int(lam) + 1)
         return lam
 
-    def alphabet_encode(self, c):
-        # operates on a single character
-        return str(hex(ord(c)))[1:]
+    def alphabet_encode(self, char):
+        if len(char) == 3 and char[0] == "x":
+            return char
+        ascii_val = str(hex(ord(char)))
+        ascii_val = ascii_val.lstrip('0x')
+        if len(ascii_val) == 1:
+            ascii_val = '0' + ascii_val
+        return 'x' + ascii_val
 
     def __str__(self):
-        # lam = self.select_lambda()
         output = ""
         output += str(len(self.L))
         output += " "
-        output += self.alphabet_encode(self.lam)
+        output += self.lam
         output += " "
-        encodedAlph = [self.alphabet_encode(c) for c in self.alphabet]
-        encodedAlph.sort
-        for c in encodedAlph:
-            output += self.alphabet_encode(c)
+
+        for c in self.alphabet:
+            output += c
             output += " "
         output += "\n"
         for i in range(len(self.T)):
@@ -130,7 +134,7 @@ class NFA:
                     output += " "
                     output += str(self.T[i][c])
                     output += " "
-                    output += self.alphabet_encode(c)
+                    output += c
                     output += "\n"
         for i in range(len(self.L)):
             for j in range(len(self.L)):
@@ -141,7 +145,7 @@ class NFA:
                     output += " "
                     output += str(j)
                     output += " "
-                    output += self.alphabet_encode(self.lam)
+                    output += self.lam
                     output += "\n"
         output += "+ 1 1"
         
