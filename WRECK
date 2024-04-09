@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+from LL1parser import CFG, Lexer
+from nfagen import NFA
+import sys
+import os
+
+def alphabet_encode(c):
+    # operates on a single character
+    return str(hex(ord(c)))[1:]
+
+def select_lambda(alphabet):
+    lam = chr(1)
+    while lam in alphabet:
+        lam = chr(int(lam) + 1)
+    return lam
+    
+def main():
+    if len(sys.argv) != 3:
+        print("Check your input, should only include a single file after the program name")
+    
+    lexConfigFile = sys.argv[1] # (input)
+    scanConfigFile = sys.argv[2] # (output)
+
+    #---------------- BUILD CFG AND PARSE TABLE ----------#
+    cfg = CFG()
+    cfgFile = 'llre.cfg'
+    try:
+        with open(cfgFile) as file:
+            for line in file:
+                cfg.add_production_rule(line.strip())
+    except FileNotFoundError:
+        print(f"File '{cfgFile}' not found")
+    
+    cfg.generate_llt()
+
+    try:
+        with open(lexConfigFile) as file:
+            fileData = file.readlines()
+    except:
+        # print(f"File '{sys.argv[1]}' not found, check your input")
+        sys.exit(1)
+    
+    if not fileData: sys.exit(1)
+
+    alphabet = [char for char in fileData[0]]
+    print(alphabet)
+    lam = select_lambda(alphabet)
+    scanOutput = ''
+    for line in fileData:
+        tokenData = line.split()
+        if len(tokenData) >= 2:
+            regEx = tokenData[0]
+            tokenId = tokenData[1]
+            tokenValue = tokenData[2] if len(tokenData) > 2 else None
+
+            scanOutput += tokenId + '.tt' + ' ' + tokenId
+            if tokenValue is not None:
+                scanOutput += ' ' + tokenValue + ' '
+            scanOutput += '\n'
+            
+            # ---- PARSING AND SDT -----#
+            l = Lexer()
+            ts = l.lex(regEx)
+            tree = cfg.parse(ts)
+            
+            # ---- NFA GENERATION -------#
+            nfa = NFA(alphabet, lam)
+            nfa.lambda_wrap(0, 1, tree)
+            # print(nfa.T)
+            # print(nfa.L)
+            # print(nfa)    
+            
+            nfaFilename = tokenId + '.nfa'
+            if not os.path.isfile(nfaFilename): sys.exit(1)
+            try:
+                f = open(nfaFilename, "w")
+            except:
+                sys.exit(1)
+
+            f.write(str(nfa))
+            f.close()
+
+    #---------------- OUTPUT TO SCAN.U FILE --------------------#
+    # if not os.path.exists(scanConfigFile): sys.exit(1)
+    # if not os.path.isfile(scanConfigFile): sys.exit(1)
+    try:
+        f = open(scanConfigFile, "w")
+    except:
+        sys.exit(1)
+
+    alphString = ''
+    alphString += lam + ' '
+    for char in alphabet:
+        alphString += alphabet_encode(char)
+        alphString += ' '
+    alphString += '\n'
+    f.write(alphString)
+    f.write(scanOutput)
+    f.close()
+
+
+if __name__ == "__main__":
+    main()

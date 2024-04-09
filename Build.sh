@@ -1,1 +1,1 @@
-chmod +x parser
+chmod +x WRECK

@@ -2,8 +2,9 @@
 from node import Node
 
 class NFA:
-    def __init__(self, alphabet):
+    def __init__(self, alphabet, lam):
         self.alphabet = alphabet
+        self.lam = lam
         # states need to be hashed by key, not stored in list
         # start with two states, 0 and 1, 1 is accepting
         # 1 will be the only accepting state
@@ -108,11 +109,11 @@ class NFA:
         return str(hex(ord(c)))[1:]
 
     def __str__(self):
-        lam = self.select_lambda()
+        # lam = self.select_lambda()
         output = ""
         output += str(len(self.L))
         output += " "
-        output += self.alphabet_encode(lam)
+        output += self.alphabet_encode(self.lam)
         output += " "
         for c in self.alphabet:
             output += self.alphabet_encode(c)
@@ -138,7 +139,7 @@ class NFA:
                     output += " "
                     output += str(j)
                     output += " "
-                    output += self.alphabet_encode(lam)
+                    output += self.alphabet_encode(self.lam)
                     output += "\n"
         output += "+ 1 1"
         
