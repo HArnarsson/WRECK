@@ -115,7 +115,9 @@ class NFA:
         output += " "
         output += self.alphabet_encode(self.lam)
         output += " "
-        for c in self.alphabet:
+        encodedAlph = [self.alphabet_encode(c) for c in self.alphabet]
+        encodedAlph.sort
+        for c in encodedAlph:
             output += self.alphabet_encode(c)
             output += " "
         output += "\n"

@@ -37,12 +37,15 @@ def main():
         with open(lexConfigFile) as file:
             fileData = file.readlines()
     except:
-        # print(f"File '{sys.argv[1]}' not found, check your input")
+        print(f"File '{sys.argv[1]}' not found, check your input")
         sys.exit(1)
     
     if not fileData: sys.exit(1)
 
     alphabet = [char for char in fileData[0]]
+    for c in alphabet:
+        if c == ' ': alphabet.remove(c)
+
     print(alphabet)
     lam = select_lambda(alphabet)
     scanOutput = ''
@@ -71,7 +74,6 @@ def main():
             # print(nfa)    
             
             nfaFilename = tokenId + '.nfa'
-            if not os.path.isfile(nfaFilename): sys.exit(1)
             try:
                 f = open(nfaFilename, "w")
             except:
