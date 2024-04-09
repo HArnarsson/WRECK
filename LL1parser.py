@@ -2,7 +2,7 @@
 
 import sys
 from collections import namedtuple
-from nfagen import NFA
+# from nfagen import NFA
 from node import Node
 # lambda_symbol = '\u03BB'
 
@@ -167,7 +167,6 @@ class CFG:
 
         return F, T
 
-
     def follow_set(self, A):
         return self.follow_helper(A, set())[0]
     
@@ -245,7 +244,7 @@ class CFG:
                 if x in self.terminals:
                     if x != ts.peek():
                         print(f"Value between token stream and expected value don't match. val:{x}, ts:{ts.peek()}, exiting...")
-                        sys.exit(1)
+                        sys.exit(2)
                     x, value = ts.pop()
                 else: value = 'lambda'   
                 current.add_child(Node(kind=x, val=value))
@@ -282,7 +281,7 @@ class TokenStream():
 class Lexer():
     def __init__(self):
         self.escapedChars = {'\|' : Token('char', '|'), '\*' : Token('char', '*'), '\+' : Token('char', '+'), '\.' : Token('char', '.'), 
-                             '\(' : Token('char', '('), '\)' : Token('char', ')'), '\-' : Token('char', '-'), '\s' : ('char', 'x20'), 
+                             '\(' : Token('char', '('), '\)' : Token('char', ')'), '\-' : Token('char', '-'), '\s' : Token('char', 'x20'), 
                              '\n' : Token('char', 'x0a'), '\\' : Token('char','\\')}
         
         self.operatorSymbols = {'(' : Token('open', '('), ')' : Token('close', ')'), '-' : Token('dash', '-'), '+' : Token('plus', '+'), 
@@ -304,5 +303,6 @@ class Lexer():
             else:
                 ts.addToken(Token('char', char))
             i += 1
+        # print(ts)
         return ts
 

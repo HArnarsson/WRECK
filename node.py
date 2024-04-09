@@ -44,7 +44,7 @@ class Node:
         newNode = Node(kind=self.kind, val=self.value)
         newNode.parent = self.parent
         newKids = []
-        for child in self.children:
+        for child in self.children[::-1]:
             if child not in processed:
                 newChild = child.copy_children(processed)
                 newKids.append(newChild)
